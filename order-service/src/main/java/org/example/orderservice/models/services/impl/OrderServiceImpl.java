@@ -3,7 +3,6 @@ package org.example.orderservice.models.services.impl;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.aspectj.weaver.ast.Or;
 import org.example.orderservice.models.constants.OrderStatus;
 import org.example.orderservice.models.dto.requests.CreateOrderDetailRequest;
 import org.example.orderservice.models.dto.requests.CreateOrderRequest;
@@ -15,6 +14,7 @@ import org.example.orderservice.models.entities.OrderDetail;
 import org.example.orderservice.models.repositories.OrderDetailRepository;
 import org.example.orderservice.models.repositories.OrderRepository;
 import org.example.orderservice.models.services.OrderService;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,10 +29,10 @@ public class OrderServiceImpl implements OrderService {
         private final OrderRepository orderRepository;
         private final OrderDetailRepository orderDetailRepository;
         private final ProductGatewayService productGatewayService;
+        private final KafkaTemplate<String, String> kafkaTemplate;
 
         @Override
         @Transactional
-        @CircuitBreaker(name = "create-order", fallbackMethod = "fallbackCreateOrder")
         public OrderResponse createOrder(CreateOrderRequest request) {
                 Order order = Order.builder()
                         .customerName(request.customerName())
@@ -59,7 +59,11 @@ public class OrderServiceImpl implements OrderService {
                 }
 
                 orderSave.setTotal(total);
+                orderSave.setStatus(OrderStatus.CONFIRM);
                 orderRepository.save(order); // cap nhap total
+
+                kafkaTemplate.send("order-created", request.customerEmail());
+
             return new OrderResponse(
                     orderSave.getId(), request.customerName(), total, OrderStatus.PENDING,
                     orderDetails.stream().map(
@@ -75,11 +79,4 @@ public class OrderServiceImpl implements OrderService {
                     ).toList()
                     );
         }
-
-        public OrderResponse fallbackCreateOrder(){
-                log.warn("Create order is failed");
-                return new OrderResponse(null, null, null, OrderStatus.CANCELED, null);
-        }
-
-
 }

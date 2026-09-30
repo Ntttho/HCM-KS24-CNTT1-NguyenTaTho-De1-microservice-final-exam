@@ -12,6 +12,6 @@ public class ProductGatewayService {
     private final ProductClient productClient;
 
     public ProductResponse getProductById(Long productId) {
-        throw new UnsupportedOperationException();
+        return productClient.getProductById(productId);
     }
 }

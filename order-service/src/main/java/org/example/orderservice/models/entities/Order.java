@@ -18,6 +18,9 @@ public class Order {
 
     @Column(name = "customer_name")
     private String customerName;
+//
+//    @Column(name = "customer_email")
+//    private String customerEmail;
 
     @Column(name = "total")
     private Double total;
